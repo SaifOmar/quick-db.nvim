@@ -11,7 +11,7 @@ DB.__index = DB
 ---@field private path? string
 ---@field private password? string
 ---@field private connected boolean
----@field type "sqlite" | "mysql" | "postgres"
+---@field type? string
 
 ---@param db string
 ---@param host? string
@@ -40,10 +40,6 @@ function DB:new(db, host, port, user, password, path, type)
 	-- return self
 end
 
-function DB:connect()
-	self.connected = true
-end
-
 ---@param data table
 --- @return DBConnection
 function DB:fromEnv(data)
@@ -58,13 +54,13 @@ function DB:fromEnv(data)
 	}
 
 	local key_mapping = {
+		DB_CONNECTION = "type",
 		DB_DATABASE = "db",
 		DB_HOST = "host",
 		DB_PORT = "port",
 		DB_USER = "user",
 		DB_PASSWORD = "password",
 		DB_PATH = "path",
-		DB_TYPE = "type",
 	}
 
 	for key, value in pairs(data) do
@@ -78,4 +74,18 @@ function DB:fromEnv(data)
 	return self:new(config.db, config.host, config.port, config.user, config.password, config.path, config.type)
 end
 
+function DB:connect()
+	local db
+	if self.type == "sqlite" then
+		db = require("quick-db.databases.sqlite")
+	end
+	-- if self.type == "mysql" then
+	--   db = require("quick-db.databases.mysql")
+	-- end
+	-- if self.type == "postgres" then
+	--   db = require("quick-db.databases.postgres")
+	-- end
+	self.path = vim.fn.getcwd() .. "/database/" .. self.db .. ".sqlite"
+	db.connect(self.path, self.db, self.host, self.port, self.user, self.password)
+end
 return DB

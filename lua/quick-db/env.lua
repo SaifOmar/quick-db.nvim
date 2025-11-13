@@ -16,7 +16,6 @@ function env:new(path)
 end
 
 function env:parse()
-	print(self.path)
 	self.data = laravelAdapter:parse(self.path)
 end
 
