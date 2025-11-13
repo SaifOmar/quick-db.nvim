@@ -71,10 +71,11 @@ function DB:fromEnv(data)
 		end
 	end
 
+	config.path = vim.fn.getcwd() .. "/database/" .. config.db .. ".sqlite"
 	return self:new(config.db, config.host, config.port, config.user, config.password, config.path, config.type)
 end
 
-function DB:connect()
+function DB:connect(job_start)
 	local db
 	if self.type == "sqlite" then
 		db = require("quick-db.databases.sqlite")
@@ -85,7 +86,13 @@ function DB:connect()
 	-- if self.type == "postgres" then
 	--   db = require("quick-db.databases.postgres")
 	-- end
-	self.path = vim.fn.getcwd() .. "/database/" .. self.db .. ".sqlite"
-	db.connect(self.path, self.db, self.host, self.port, self.user, self.password)
+	local job_id = db.connect(self, job_start)
+	require("quick-db.utils").log(vim.inspect(job_id) .. " is job id")
+	-- db.getTables(send)
+	return job_id
+end
+
+function DB:getPath()
+	return self.path
 end
 return DB
