@@ -88,6 +88,9 @@ function DB:connect(job_start)
 	-- end
 	local job_id = db.connect(self, job_start)
 	require("quick-db.utils").log(vim.inspect(job_id) .. " is job id")
+	if job_id then
+		self.connected = true
+	end
 	-- db.getTables(send)
 	return job_id
 end
