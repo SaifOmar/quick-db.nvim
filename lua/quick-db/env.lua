@@ -17,6 +17,7 @@ end
 
 function env:parse()
 	self.data = laravelAdapter:parse(self.path)
+	return self
 end
 
 return env
