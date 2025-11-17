@@ -94,7 +94,6 @@ function DB:connect(job_start)
 	-- db.getTables(send)
 	return job_id
 end
-
 function DB:getPath()
 	return self.path
 end
