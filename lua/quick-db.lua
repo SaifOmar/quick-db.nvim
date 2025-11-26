@@ -153,6 +153,8 @@ end
 
 function M:open_buffer_with_lines_win(lines)
 	local win = UI.window()
+	vim.api.nvim_buf_set_keymap(win.buf, "n", "q", ":close<CR>", { noremap = true, silent = true })
+
 	vim.api.nvim_win_set_buf(win.win, win.buf)
 	vim.api.nvim_buf_set_lines(win.buf, 0, -1, false, utils.table_to_lines(lines))
 end
