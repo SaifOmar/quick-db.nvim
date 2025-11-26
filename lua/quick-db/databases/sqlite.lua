@@ -1,5 +1,6 @@
 local sqlite = {}
 
+local utils = require("quick-db.utils")
 ---@param connection_data table
 ---@return table
 sqlite.spec = function(connection_data)
@@ -13,8 +14,13 @@ sqlite.spec = function(connection_data)
 		end,
 		---@return table
 		parse = function(data)
-			return vim.json.decode(data)
+			utils.log("old is the data " .. vim.inspect(data))
+			local new_data = vim.json.decode(data)
+			utils.log("new is the data " .. vim.inspect(new_data))
+			return new_data
 		end,
+
+		-- formats the reslts of the .tables query to be shown for the ui correctly
 		format_tables = function(data)
 			local temp = {}
 			for i, table in ipairs(data) do
@@ -22,6 +28,8 @@ sqlite.spec = function(connection_data)
 			end
 			return temp
 		end,
+
+		-- formats the reslts of the table select query to be shown for the ui correctly
 		format_table_results = function(data)
 			local lines = {}
 			for k, v in pairs(data) do
