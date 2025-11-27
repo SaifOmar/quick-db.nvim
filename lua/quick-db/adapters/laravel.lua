@@ -10,14 +10,13 @@ local isPathCorrect = function(path)
 	return false
 end
 
---- @param type string
---- @return table
+---@param type string
+---@return table
 local function laravelDefatuls(type)
 	if type == "sqlite" then
 		print("type is sqlite")
 	else
-		print("type is not sqlite")
-		print(type)
+		print("type is.." .. type)
 	end
 
 	local sqlite = {
@@ -100,7 +99,6 @@ function adapter:parse(path)
 	if isPathCorrect(path) then
 		return parseFile(path)
 	else
-		print("Path is not correct")
 		return {}
 	end
 end

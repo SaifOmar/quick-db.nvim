@@ -84,6 +84,10 @@ function M.connect()
 	local m = M:new(stdin, stdout, stderr)
 
 	local connection_data = Env:new(vim.fn.getcwd()):parse().data
+	if table.maxn(table) == 0 then
+		vim.notify("No connection data or no framework adapter", vim.log.levels.ERROR)
+		return
+	end
 
 	m.con = CON:fromEnv(connection_data)
 	-- utils.log("connection is " .. vim.inspect(m.con))
@@ -131,8 +135,10 @@ function M:queryTable(table_name)
 		self.selectedRow = choice
 
 		M:open_buffer_with_lines_win(choice)
+		local stop2 = uv.read_stop(self.stdin)
 		local stop = uv.read_stop(self.stdout)
 		utils.log(vim.inspect(stop))
+		utils.log(vim.inspect(stop2))
 	end
 
 	local entry_maker = function(record)
