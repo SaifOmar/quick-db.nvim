@@ -5,6 +5,8 @@ local actions = require("telescope.actions")
 local action_state = require("telescope.actions.state")
 local sorters = require("telescope.sorters")
 
+local utils = require("quick-db.utils")
+
 local conf = require("telescope.config").values
 local themes = require("telescope.themes")
 local previewers = require("telescope.previewers")
@@ -52,6 +54,7 @@ end
 ---@param on_choice function
 ---@param entry_maker function
 function M:showPicker(prompt, data, on_choice, entry_maker)
+	utils.log("data is in picker " .. vim.inspect(data))
 	local opts = {}
 	pickers
 		.new(opts, {

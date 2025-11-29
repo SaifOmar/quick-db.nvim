@@ -27,7 +27,37 @@ sqlite.spec = function(connection_data)
 
 		---@return table
 		parse = function(data)
-			return vim.json.decode(data)
+			if data == nil then
+				return {}
+			end
+
+			if type(data) == "string" then
+				local ok, decoded = pcall(vim.json.decode, data)
+				if ok then
+					return decoded
+				else
+					return {}
+				end
+			end
+
+			-- Case 2: data is a table of JSON strings
+			if type(data) == "table" then
+				local out = {}
+
+				for _, item in ipairs(data) do
+					if type(item) == "string" then
+						local ok, decoded = pcall(vim.json.decode, item)
+						if ok then
+							table.insert(out, decoded)
+						end
+					end
+				end
+
+				return out
+			end
+
+			-- Fallback
+			return {}
 		end,
 		-- formats the reslts of the .tables query to be shown for the ui correctly
 		-- @param data table

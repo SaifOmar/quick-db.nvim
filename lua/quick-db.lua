@@ -4,12 +4,19 @@ local M = {}
 M.__index = M
 
 local count = 0
--- Constructor
+--- @class QuickDB
+--- @field spec table
+--- @field rawChunks table
+--- @field error_output table
+--- @field callbacks table
+
+local count = 0
+---@return QuickDB
 function M:new()
 	local o = {
 		spec = nil,
-		raw = {},
-		data = nil,
+		rawChunks = {},
+		error_output = {},
 		callbacks = {},
 	}
 	return setmetatable(o, M)
@@ -27,49 +34,18 @@ function M:setup()
 	self.spec = CON:fromEnv(env_data)
 end
 
-function M:connect2()
-	if not self.spec then
-		self:setup()
-		vim.notify("QuickDB connected!")
-	else
-		vim.notify("Already connected")
-	end
-
-	-- Flatten helper
-	local function flatten(tbl, out)
-		out = out or {}
-		for _, v in ipairs(tbl) do
-			if type(v) == "table" then
-				flatten(v, out)
-			else
-				table.insert(out, v)
-			end
-		end
-		return out
-	end
-
-	local args = flatten({
-		self.spec.cmd,
-		self.spec.connection_args,
-		self.spec.queries.getTableRecords("migrations"),
-	})
-
-	vim.notify("args is " .. vim.inspect(args))
-
-	-- Split command and args
+function M:quick(args)
 	local cmd = args[1]
 	local cmd_args = {}
 	for i = 2, #args do
 		table.insert(cmd_args, args[i])
 	end
-
-	-- Setup pipes
 	local stdout = vim.uv.new_pipe(false)
 	local stderr = vim.uv.new_pipe(false)
 
-	local output = {}
-	local error_output = {}
-
+	args[#args] = '"' .. args[#args] .. '"'
+	local flattened = utils.flatten(args)
+	utils.log("try set args " .. table.concat(flattened, " "))
 	-- Spawn process
 	local handle
 	handle = vim.uv.spawn(cmd, {
@@ -83,6 +59,46 @@ function M:connect2()
 
 		-- Schedule UI update on main thread
 		vim.schedule(function()
+			if self.callbacks[#self.callbacks] ~= nil then
+				self.callbacks[#self.callbacks]()
+				table.remove(self.callbacks, #self.callbacks)
+			end
+			self.rawChunks = {}
+		end)
+	end)
+
+	-- Start reading stdout
+	vim.uv.read_start(stdout, function(err, data)
+		assert(not err, err)
+		if data then
+			count = count + 1
+			vim.notify("count is " .. vim.inspect(count))
+			table.insert(self.rawChunks, data)
+		end
+	end)
+
+	-- Start reading stderr (optional)
+	vim.uv.read_start(stderr, function(err, data)
+		assert(not err, err)
+		if data then
+			table.insert(self.error_output, data)
+		end
+	end)
+end
+function M:connect2()
+	if not self.spec then
+		self:setup()
+		vim.notify("QuickDB connected!")
+	else
+		vim.notify("Already connected")
+	end
+
+	self.callbacks = {
+		function(record)
+			utils.log("record is " .. vim.inspect(record))
+			UI:open_buffer_with_lines_win(utils.table_to_lines(record))
+		end,
+		function(table_name)
 			local entry_maker = function(record)
 				local expanded = utils.expand(record)
 				return {
@@ -91,37 +107,59 @@ function M:connect2()
 					display = record.id .. " " .. expanded,
 				}
 			end
-
-			utils.log("output is " .. vim.inspect(output))
-			UI:showPicker(
-				"Select a record to progress",
-				self.spec.formatTableResults(self.spec.parse(table.concat(output))),
-				nil,
-				entry_maker
-			)
-
-			if self.callbacks[#self.callbacks] then
-				self.callbacks[#self.callbacks]()
+			utils.log("output is " .. vim.inspect(self.rawChunks))
+			local on_choice = function(choice)
+				self.callbacks[#self.callbacks](choice)
 				table.remove(self.callbacks, #self.callbacks)
 			end
-		end)
-	end)
+			UI:showPicker(
+				"Select a record to progress",
+				self.spec.formatTableResults(self.spec.parse(table.concat(self.rawChunks))),
+				on_choice,
+				entry_maker
+			)
+		end,
+		function(table_name)
+			local query = self.spec.queries.getTableRecords(table_name)
+			self:quick(utils.flatten({
+				self.spec.cmd,
+				self.spec.connection_args,
+				query,
+			}))
+		end,
+		function()
+			local entry_maker = function(record)
+				return {
+					value = record,
+					ordinal = record,
+					display = record,
+				}
+			end
+			utils.log("output is " .. vim.inspect(self.rawChunks))
+			local on_choice = function(choice)
+				self.callbacks[#self.callbacks](choice)
+				table.remove(self.callbacks, #self.callbacks)
+			end
+			UI:showPicker(
+				"Select a table to progress",
+				self.spec.formatTables(self.spec.parse(table.concat(self.rawChunks))),
+				on_choice,
+				entry_maker
+			)
+		end,
+	}
+	-- Flatten helper
 
-	-- Start reading stdout
-	vim.uv.read_start(stdout, function(err, data)
-		assert(not err, err)
-		if data then
-			table.insert(output, data)
-		end
-	end)
+	local args = utils.flatten({
+		self.spec.cmd,
+		self.spec.connection_args,
+		self.spec.queries.getTables(),
+	})
 
-	-- Start reading stderr (optional)
-	vim.uv.read_start(stderr, function(err, data)
-		assert(not err, err)
-		if data then
-			table.insert(error_output, data)
-		end
-	end)
+	vim.notify("args is " .. vim.inspect(args))
+
+	-- Split command and args
+	self:quick(args)
 end
 -- Public connect
 function M:connect()

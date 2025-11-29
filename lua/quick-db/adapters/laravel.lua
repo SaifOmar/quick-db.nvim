@@ -19,35 +19,39 @@ local function laravelDefatuls(type)
 		print("type is.." .. type)
 		print("hahah")
 	end
+	local dbDefaults = {
 
-	local sqlite = {
-		DB_CONNECTION = "sqlite",
-		DB_DATABASE = "database",
-	}
+		sqlite = {
+			DB_CONNECTION = "sqlite",
+			DB_DATABASE = "database",
+		},
 
-	local mysql = {
-		DB_CONNECTION = "mysql",
-		DB_HOST = "127.0.0.1",
-		DB_PORT = "3306",
-		DB_USERNAME = "root",
-		DB_PASSWORD = "",
-		DB_DATABASE = "",
+		mysql = {
+			DB_CONNECTION = "mysql",
+			DB_HOST = "127.0.0.1",
+			DB_PORT = "3306",
+			DB_USERNAME = "root",
+			DB_PASSWORD = "",
+			DB_DATABASE = "",
+		},
+		pgsql = {
+			DB_CONNECTION = "pgsql",
+			DB_HOST = "127.0.0.1",
+			DB_PORT = "5432",
+			DB_USERNAME = "root",
+			Db_PASSWORD = "",
+		},
 	}
-	local postgres = {
-		DB_CONNECTION = "postgres",
-		DB_HOST = "127.0.0.1",
-		DB_PORT = "5432",
-		DB_USERNAME = "root",
-		Db_PASSWORD = "",
-	}
-	if type == "sqlite" then
-		return sqlite
-	elseif type == "mysql" then
-		return mysql
-	elseif type == "postgres" then
-		return postgres
-	end
-	return {}
+	return dbDefaults[type] or {}
+
+	-- 	if type == "sqlite" then
+	-- 		return sqlite
+	-- 	elseif type == "mysql" then
+	-- 		return mysql
+	-- 	elseif type == "pgsql" then
+	-- 		return pgsql
+	-- 	end
+	-- 	return {}
 end
 
 ---@param data table

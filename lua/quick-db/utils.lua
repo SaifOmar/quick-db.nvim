@@ -9,22 +9,6 @@ function M.log(msg)
 		f:close()
 	end
 end
-function M.flatten(input_table)
-	local result = {}
-
-	local function recurse_flatten(current_table)
-		for _, value in pairs(current_table) do
-			if type(value) == "table" then
-				recurse_flatten(value) -- Recursively call for nested tables
-			else
-				table.insert(result, value) -- Add non-table elements to the result
-			end
-		end
-	end
-
-	recurse_flatten(input_table)
-	return result
-end
 
 function M.ends_with_backslash_n_quote(str)
 	if type(str) ~= "string" then
@@ -32,7 +16,20 @@ function M.ends_with_backslash_n_quote(str)
 	end
 	return str:sub(-3) == "}]\n"
 end
+
+function M.flatten(tbl, out)
+	out = out or {}
+	for _, v in ipairs(tbl) do
+		if type(v) == "table" then
+			M.flatten(v, out)
+		else
+			table.insert(out, v)
+		end
+	end
+	return out
+end
 -- formating needed to print the table in a buffer
+--
 function M.table_to_lines(tbl)
 	local lines = {}
 	for k, v in pairs(tbl) do
