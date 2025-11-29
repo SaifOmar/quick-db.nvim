@@ -1,5 +1,8 @@
-local M = require("quick-db")
+local quickDb = require("quick-db")
+local db = quickDb:new()
 
-vim.api.nvim_create_user_command("QuickConnect", M.connect, {})
+vim.api.nvim_create_user_command("QuickConnect", function()
+	db:connect2()
+end, {})
 -- vim.api.nvim_create_user_command("TestMe", M.Qtest, {})
 -- vim.api.nvim_create_user_command("Testt", M.test, {})

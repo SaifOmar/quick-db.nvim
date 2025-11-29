@@ -3,126 +3,190 @@ local CON = require("quick-db.connection")
 local M = {}
 M.__index = M
 
+local count = 0
+-- Constructor
+function M:new()
+	local o = {
+		spec = nil,
+		raw = {},
+		data = nil,
+		callbacks = {},
+	}
+	return setmetatable(o, M)
+end
+
 local Env = require("quick-db.env")
 local utils = require("quick-db.utils")
 local UI = require("quick-db.ui")
 
-local pickers = require("telescope.pickers")
-local finders = require("telescope.finders")
-local actions = require("telescope.actions")
-local action_state = require("telescope.actions.state")
-local sorters = require("telescope.sorters")
-
-local conf = require("telescope.config").values
-local themes = require("telescope.themes")
-local previewers = require("telescope.previewers")
-
 local uv = vim.uv
 
--- Main data obj
----@class QuickDB
----@field private stdin uv_pipe_t
----@field private stdout uv_pipe_t
----@field private stderr uv_pipe_t
----@field private handle? uv_process_t
----@field private pid? integer
----@field private data? string
----@field private raw? string
----@field private con? table
----
----@filed private callbacks? table
-
----@param stdin uv_pipe_t
----@param stdout uv_pipe_t
----@param stderr uv_pipe_t
----@param handle? uv_process_t
----@param pid? integer
----@param data? string
----@param dbconnection? DBConnection
-function M:new(stdin, stdout, stderr, handle, pid, data, dbconnection)
-	return setmetatable({
-		raw = "",
-		data = data or nil,
-		stdin = stdin,
-		stdout = stdout,
-		stderr = stderr,
-		handle = handle,
-		pid = pid,
-		dbconnection = dbconnection,
-		callbacks = {},
-	}, self)
+-- Set up connection
+function M:setup()
+	local env_data = Env:new(vim.fn.getcwd()):parse().data
+	self.spec = CON:fromEnv(env_data)
 end
 
--- Takes a record and returns concated string values of tabls minus id and *_at
----@param record table
----@return string
-local function expand(record)
-	local str = ""
-
-	for k, v in pairs(record) do
-		if
-			v ~= vim.NIL
-			and k ~= "id"
-			and k ~= "created_at"
-			and k ~= "updated_at"
-			and k ~= "deleted_at"
-			-- and count < 10
-		then
-			str = str .. tostring(v) .. " "
-		end
+function M:connect2()
+	if not self.spec then
+		self:setup()
+		vim.notify("QuickDB connected!")
+	else
+		vim.notify("Already connected")
 	end
 
-	return str
-end
-
--- starts the connection to the database cli and exposes std (out,err,in) pipes
-function M.connect()
-	local stdin = uv.new_pipe()
-	local stdout = uv.new_pipe()
-	local stderr = uv.new_pipe()
-
-	local m = M:new(stdin, stdout, stderr)
-
-	local connection_data = Env:new(vim.fn.getcwd()):parse().data
-
-	m.con = CON:fromEnv(connection_data)
-	-- utils.log("connection is " .. vim.inspect(m.con))
-
-	m:initConnection()
-	m:getTables()
-
-	uv.read_start(stdout, function(err, chunk)
-		assert(not err, err)
-		if chunk then
-			m.raw = m.raw .. chunk
-			local bol = utils.ends_with_backslash_n_quote(chunk)
-			if bol then
-				m.data = m.raw
-				vim.schedule(function()
-					if m.callbacks[#m.callbacks] then
-						m.callbacks[#m.callbacks](m.data)
-						table.remove(m.callbacks, #m.callbacks)
-						m.raw = ""
-						m.data = nil
-					else
-						vim.notify("WHOPS NO CALLBACK", vim.log.levels.ERROR)
-					end
-				end)
+	-- Flatten helper
+	local function flatten(tbl, out)
+		out = out or {}
+		for _, v in ipairs(tbl) do
+			if type(v) == "table" then
+				flatten(v, out)
+			else
+				table.insert(out, v)
 			end
-		else
-			utils.log("Disconnected")
-			vim.notify("Disconnected", vim.log.levels.INFO)
+		end
+		return out
+	end
+
+	local args = flatten({
+		self.spec.cmd,
+		self.spec.connection_args,
+		self.spec.queries.getTableRecords("migrations"),
+	})
+
+	vim.notify("args is " .. vim.inspect(args))
+
+	-- Split command and args
+	local cmd = args[1]
+	local cmd_args = {}
+	for i = 2, #args do
+		table.insert(cmd_args, args[i])
+	end
+
+	-- Setup pipes
+	local stdout = vim.uv.new_pipe(false)
+	local stderr = vim.uv.new_pipe(false)
+
+	local output = {}
+	local error_output = {}
+
+	-- Spawn process
+	local handle
+	handle = vim.uv.spawn(cmd, {
+		args = cmd_args,
+		stdio = { nil, stdout, stderr },
+	}, function(code, signal)
+		-- close pipes and handle
+		stdout:close()
+		stderr:close()
+		handle:close()
+
+		-- Schedule UI update on main thread
+		vim.schedule(function()
+			local entry_maker = function(record)
+				local expanded = utils.expand(record)
+				return {
+					value = record,
+					ordinal = record.id .. " " .. expanded,
+					display = record.id .. " " .. expanded,
+				}
+			end
+
+			utils.log("output is " .. vim.inspect(output))
+			UI:showPicker(
+				"Select a record to progress",
+				self.spec.formatTableResults(self.spec.parse(table.concat(output))),
+				nil,
+				entry_maker
+			)
+
+			if self.callbacks[#self.callbacks] then
+				self.callbacks[#self.callbacks]()
+				table.remove(self.callbacks, #self.callbacks)
+			end
+		end)
+	end)
+
+	-- Start reading stdout
+	vim.uv.read_start(stdout, function(err, data)
+		assert(not err, err)
+		if data then
+			table.insert(output, data)
+		end
+	end)
+
+	-- Start reading stderr (optional)
+	vim.uv.read_start(stderr, function(err, data)
+		assert(not err, err)
+		if data then
+			table.insert(error_output, data)
 		end
 	end)
 end
+-- Public connect
+function M:connect()
+	if not self.spec then
+		self:setup()
+		vim.notify("QuickDB connected!")
+	else
+		vim.notify("Already connected")
+	end
 
+	local function flatten(tbl, out)
+		out = out or {}
+		for _, v in ipairs(tbl) do
+			if type(v) == "table" then
+				flatten(v, out)
+			else
+				table.insert(out, v)
+				vim.notify("v is " .. vim.inspect(v))
+			end
+		end
+		return out
+	end
+
+	local args = flatten({
+		self.spec.cmd,
+		self.spec.connection_args,
+		self.spec.queries.getTableRecords("users"),
+	})
+
+	local on_exit = function(obj)
+		vim.schedule(function()
+			local entry_maker = function(record)
+				local expanded = utils.expand(record)
+				return {
+					value = record,
+					ordinal = record.id .. " " .. expanded,
+					display = record.id .. " " .. expanded,
+				}
+			end
+			UI:showPicker(
+				"Select a record to progress",
+				self.spec.formatTableResults(self.spec.parse(obj.stdout)),
+				nil,
+				entry_maker
+			)
+			if self.callbacks[#self.callbacks] then
+				self.callbacks[#self.callbacks]()
+				table.remove(self.callbacks, #self.callbacks)
+			end
+		end)
+	end
+	vim.notify("args is " .. vim.inspect(args))
+
+	vim.system(args, { text = true }, on_exit)
+end
+function M:getData()
+	local data = utils.flatten(self.raw)
+	return data
+end
 -- gets all table records
 function M:queryTable(table_name)
 	self:writeToStdin("SELECT * FROM " .. table_name .. ";\n")
 
 	local prompt = "Select a record to progress"
 
-	-- utils.log("here" .. vim.inspect(data))
 	local parseData = function(data)
 		return self.con.format_table_results(self.con.parse(data))
 	end
@@ -130,15 +194,13 @@ function M:queryTable(table_name)
 	local on_choice = function(choice)
 		self.selectedRow = choice
 
-		M:open_buffer_with_lines_win(choice)
+		UI:open_buffer_with_lines_win(utils.table_to_lines(choice))
 		local stop2 = uv.read_stop(self.stdin)
 		local stop = uv.read_stop(self.stdout)
-		utils.log(vim.inspect(stop))
-		utils.log(vim.inspect(stop2))
 	end
 
 	local entry_maker = function(record)
-		local expanded = expand(record)
+		local expanded = utils.expand(record)
 		-- utils.log("expanded is " .. vim.inspect(expanded))
 		return {
 			value = record,
@@ -148,18 +210,10 @@ function M:queryTable(table_name)
 	end
 	-- utils.log("here is were we start to fail")
 	table.insert(self.callbacks, function(data)
-		self:showPicker(prompt, parseData(data), on_choice, entry_maker)
+		UI:showPicker(prompt, parseData(data), on_choice, entry_maker)
 	end)
 end
 --
-
-function M:open_buffer_with_lines_win(lines)
-	local win = UI.window()
-	vim.api.nvim_buf_set_keymap(win.buf, "n", "q", ":close<CR>", { noremap = true, silent = true })
-
-	vim.api.nvim_win_set_buf(win.win, win.buf)
-	vim.api.nvim_buf_set_lines(win.buf, 0, -1, false, utils.table_to_lines(lines))
-end
 
 function M:getTables()
 	self:writeToStdin("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%';\n")
@@ -180,73 +234,9 @@ function M:getTables()
 		}
 	end
 	table.insert(self.callbacks, function(data)
-		self:showPicker(promet, parseData(data), on_choice, entry_maker)
+		UI:showPicker(promet, parseData(data), on_choice, entry_maker)
 	end)
 	--
-end
-
----@param prompt string
----@param data table
----@param on_choice function
----@param entry_maker function
-function M:showPicker(prompt, data, on_choice, entry_maker)
-	-- utils.log("here")
-	-- utils.log(vim.inspect(data))
-	local opts = {}
-	pickers
-		.new(opts, {
-			prompt_title = prompt,
-			finder = finders.new_table({
-				results = data,
-				entry_maker = entry_maker or function(entry)
-					return {
-						value = entry,
-						display = entry,
-						ordinal = entry,
-					}
-				end,
-			}),
-			sorter = sorters.get_generic_fuzzy_sorter(),
-			-- previewer = previewers.new_buffer_previewer({
-			-- 	define_preview = function(self, entry)
-			-- 		local lines = dict_to_pretty_lines(entry.value)
-			-- 		vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
-			-- 	end,
-			-- }),
-			attach_mappings = function(prompt_bufnr, map)
-				actions.select_default:replace(function()
-					actions.close(prompt_bufnr)
-					local selection = action_state.get_selected_entry()
-					on_choice(selection.value)
-				end)
-				return true
-			end,
-		})
-		:find()
-end
-
----@param stdinData string
-function M:writeToStdin(stdinData, errHandler)
-	uv.write(self.stdin, stdinData, errHandler or function(err)
-		if err then
-			utils.log(vim.inspect(err))
-		end
-	end)
-end
-
-function M:initConnection()
-	local cmd = self.con.cmd
-	local args = self.con.connection_args
-	local handle, pid = uv.spawn(
-		cmd,
-		{ args = args, stdio = { self.stdin, self.stdout, self.stderr } },
-		function(code, signal)
-			print("exit code", code)
-			print("exit signal", signal)
-		end
-	)
-	self.handle = handle
-	self.pid = pid
 end
 
 return M

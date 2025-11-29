@@ -1,4 +1,14 @@
 local M = {}
+local pickers = require("telescope.pickers")
+local finders = require("telescope.finders")
+local actions = require("telescope.actions")
+local action_state = require("telescope.actions.state")
+local sorters = require("telescope.sorters")
+
+local conf = require("telescope.config").values
+local themes = require("telescope.themes")
+local previewers = require("telescope.previewers")
+
 function M.window(opts)
 	opts = opts or {}
 	local width = opts.width or math.floor((vim.o.columns * 0.7))
@@ -29,4 +39,43 @@ function M.window(opts)
 	return { buf = buf, win = win }
 end
 
+function M:open_buffer_with_lines_win(lines)
+	local win = self.window()
+	vim.api.nvim_buf_set_keymap(win.buf, "n", "q", ":close<CR>", { noremap = true, silent = true })
+
+	vim.api.nvim_win_set_buf(win.win, win.buf)
+	vim.api.nvim_buf_set_lines(win.buf, 0, -1, false, lines)
+end
+
+---@param prompt string
+---@param data table
+---@param on_choice function
+---@param entry_maker function
+function M:showPicker(prompt, data, on_choice, entry_maker)
+	local opts = {}
+	pickers
+		.new(opts, {
+			prompt_title = prompt,
+			finder = finders.new_table({
+				results = data,
+				entry_maker = entry_maker or function(entry)
+					return {
+						value = entry,
+						display = entry,
+						ordinal = entry,
+					}
+				end,
+			}),
+			sorter = sorters.get_generic_fuzzy_sorter(),
+			attach_mappings = function(prompt_bufnr, map)
+				actions.select_default:replace(function()
+					actions.close(prompt_bufnr)
+					local selection = action_state.get_selected_entry()
+					on_choice(selection.value)
+				end)
+				return true
+			end,
+		})
+		:find()
+end
 return M

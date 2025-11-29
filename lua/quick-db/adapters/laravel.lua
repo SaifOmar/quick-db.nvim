@@ -17,6 +17,7 @@ local function laravelDefatuls(type)
 		print("type is sqlite")
 	else
 		print("type is.." .. type)
+		print("hahah")
 	end
 
 	local sqlite = {
