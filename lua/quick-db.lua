@@ -84,10 +84,6 @@ function M.connect()
 	local m = M:new(stdin, stdout, stderr)
 
 	local connection_data = Env:new(vim.fn.getcwd()):parse().data
-	if table.maxn(table) == 0 then
-		vim.notify("No connection data or no framework adapter", vim.log.levels.ERROR)
-		return
-	end
 
 	m.con = CON:fromEnv(connection_data)
 	-- utils.log("connection is " .. vim.inspect(m.con))
