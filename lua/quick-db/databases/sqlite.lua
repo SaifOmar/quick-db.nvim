@@ -14,7 +14,6 @@ sqlite.spec = function(connection_data)
 	spec.queryBuilder = function(query)
 		-- wrap in quotes for sqlite
 		query = '"' .. query .. '"'
-		vim.notify("query is " .. vim.inspect(query))
 		return query
 	end
 
@@ -110,7 +109,7 @@ sqlite.spec = function(connection_data)
 		if vim.fn.filereadable(spec.path) == 1 then
 			return true
 		else
-			vim.notify("file is not readable")
+			vim.notify("file is not readable", vim.log.levels.ERROR)
 			return false
 		end
 	end

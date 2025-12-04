@@ -11,8 +11,9 @@ local uv = vim.uv
 --- @field spec table
 --- @field rawChunks table
 --- @field error_output table
---- @field connect function
-
+--- @field Connect function
+--- @field ConnectUserConnection function
+---
 ---@return QuickDB
 function M:new()
 	local o = {
@@ -31,7 +32,12 @@ function M:setup()
 	self.spec = CON:fromEnv(env_data)
 end
 
-function M:connect()
+function M:ConnectUserConnection()
+	self.spec = {}
+	self:_promptForConnection()
+end
+
+function M:Connect()
 	if not self.spec then
 		local err = self:setup()
 		if err ~= nil then
@@ -49,17 +55,26 @@ function M:connect()
 end
 
 function M:_promptForConnection()
-	UI:promptUser("Please provide a connection command", "docker", function(input)
+	---@diagnostic disable-next-line: missing-parameter
+	UI:showPicker("Select database driver", { "sqlite", "mysql", "psql" }, function(input)
 		if input and input ~= "" then
-			self.spec.cmd = input
+			self.spec.name = input
+			self.spec = CON:new(CON:getSpec({ name = input }))
 		else
 			return
 		end
-		UI:promptUser("Please provide a connection args", table.concat(self.spec.connection_args, " "), function(ins)
-			if ins and ins ~= "" then
-				self.spec.assignUserArgs(utils.split(ins, " "))
+		UI:promptUser("Please provide a cli connection command", "docker", function(inp)
+			if inp and inp ~= "" then
+				self.spec.cmd = inp
+			else
+				return
 			end
-			self:_step_getTables()
+			UI:promptUser("Please provide connection args", table.concat(self.spec.connection_args, " "), function(ins)
+				if ins and ins ~= "" then
+					self.spec.assignUserArgs(utils.split(ins, " "))
+				end
+				self:_step_getTables()
+			end)
 		end)
 	end)
 end
@@ -89,7 +104,6 @@ function M:_step_showTablesUI()
 
 	local on_choice = function(table_name)
 		if table_name then
-			-- Next Step: Get records for selected table
 			self:_step_getRecords(table_name)
 		end
 	end
@@ -128,7 +142,6 @@ function M:_step_showRecordsUI()
 
 	local on_choice = function(record)
 		if record then
-			-- Final Step: Display Record
 			self:_step_displayRecord(record)
 		end
 	end

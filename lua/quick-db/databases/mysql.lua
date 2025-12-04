@@ -14,11 +14,11 @@ mysql.spec = function(connection_data)
 		"mysqlsh",
 		"--quiet-start=2",
 		"--json",
-		"--user=" .. connection_data.username,
-		"--host=" .. connection_data.host,
-		"--port=" .. connection_data.port,
-		"--password=" .. connection_data.password,
-		"--database=" .. connection_data.database,
+		"--user=" .. (connection_data.username or "root"),
+		"--host=" .. (connection_data.host or "localhost"),
+		"--port=" .. (connection_data.port or "3306"),
+		"--password=" .. (connection_data.password or ""),
+		"--database=" .. (connection_data.database or ""),
 		"-e",
 	}
 	spec.persistant = connection_data.persistant or true

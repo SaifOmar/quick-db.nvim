@@ -86,7 +86,7 @@ end
 ---@param default string
 function M:promptUser(prompt, default, callback)
 	vim.ui.input({
-		prompt = "Enter parameters: ",
+		prompt = prompt,
 		default = default,
 		completion = "file",
 		highlight = false,

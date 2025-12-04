@@ -10,14 +10,20 @@ function CONNECTION:new(spec)
 	return setmetatable(spec, self)
 end
 
-local function getSpec(connection_data)
+function CONNECTION:getSpec(connection_data)
 	if connection_data.name == "sqlite" then
 		return require("quick-db.databases.sqlite").spec(connection_data)
 	end
 	if connection_data.name == "mysql" then
 		return require("quick-db.databases.mysql").spec(connection_data)
 	end
-	if connection_data.name == "pgsql" then
+	if
+		connection_data.name == "psql"
+		or connection_data.name == "postgresql"
+		or connection_data.name == "postgres"
+		or connection_data.name == "pgsql"
+		or connection_data.name == "pg"
+	then
 		return require("quick-db.databases.pgsql").spec(connection_data)
 	end
 end
@@ -35,7 +41,7 @@ function CONNECTION:fromEnv(env_data)
 	connection_data.port = env_data.DB_PORT
 	connection_data.database = env_data.DB_DATABASE
 
-	return self:new(getSpec(connection_data))
+	return self:new(self:getSpec(connection_data))
 end
 
 return CONNECTION
