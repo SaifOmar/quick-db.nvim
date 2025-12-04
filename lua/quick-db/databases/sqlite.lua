@@ -108,7 +108,6 @@ sqlite.spec = function(connection_data)
 	-- checks if the sqlite file is readable thus can be connected to
 	spec.checkConnection = function()
 		if vim.fn.filereadable(spec.path) == 1 then
-			vim.notify("file is readable")
 			return true
 		else
 			vim.notify("file is not readable")
