@@ -22,6 +22,8 @@ Database access for quick devs.
 
   `:QuickConnect` – Magic command to connect to a database and start your fast dev session.
 
+  `:QuickConnectUserConnection` –  Allows users to specify their own connection.
+
 ```
 
 ```lua
