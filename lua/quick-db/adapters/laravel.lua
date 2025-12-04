@@ -16,7 +16,7 @@ local function laravelDefatuls(type)
 	local dbDefaults = {
 		sqlite = {
 			DB_CONNECTION = "sqlite",
-			DB_DATABASE = "database",
+			DB_DATABASE = vim.fn.getcwd() .. "/database/database.sqlite",
 		},
 
 		mysql = {

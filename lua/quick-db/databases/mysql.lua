@@ -10,7 +10,7 @@ mysql.spec = function(connection_data)
 	spec.database = connection_data.database
 	spec.connection_args = {
 		"exec",
-		"mysql8",
+		"gobydb",
 		"mysqlsh",
 		"--quiet-start=2",
 		"--json",

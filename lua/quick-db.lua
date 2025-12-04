@@ -13,6 +13,7 @@ local uv = vim.uv
 --- @field error_output table
 --- @field Connect function
 --- @field ConnectUserConnection function
+--- @field Test function
 ---
 ---@return QuickDB
 function M:new()
@@ -47,6 +48,16 @@ function M:Connect()
 	end
 
 	if self.spec.checkConnection() == false then
+		vim.notify("Connection failed", vim.log.levels.ERROR)
+		utils.log("spec is " .. vim.inspect(self.spec))
+		utils.log(
+			"try set args "
+				.. self.spec.cmd
+				.. " "
+				.. table.concat(self.spec.connection_args, " ")
+				.. " "
+				.. tostring(self.spec.queries.getTables())
+		)
 		self:_promptForConnection()
 		return
 	end
@@ -151,6 +162,24 @@ function M:_step_showRecordsUI()
 		self.spec.formatTableResults(self.spec.parse(table.concat(self.rawChunks))),
 		on_choice,
 		entry_maker
+	)
+end
+
+function M:Test()
+	local env_data = Env:new(vim.fn.getcwd()):parse().data
+	vim.notify("env data is " .. vim.inspect(env_data))
+	if env_data == nil or next(env_data) == nil then
+		return "No env data found"
+	end
+	self.spec = CON:fromEnv(env_data)
+	vim.notify("spec is " .. vim.inspect(self.spec))
+	utils.log(
+		"try set args "
+			.. self.spec.cmd
+			.. " "
+			.. table.concat(self.spec.connection_args, " ")
+			.. " "
+			.. self.spec.queries.getTables()
 	)
 end
 

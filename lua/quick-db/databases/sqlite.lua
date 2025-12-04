@@ -9,7 +9,8 @@ sqlite.spec = function(connection_data)
 	spec.name = "sqlite"
 	spec.cmd = "sqlite3"
 	spec.path = connection_data.path
-	spec.connection_args = { "-json", connection_data.path }
+	spec.database = connection_data.database
+	spec.connection_args = { "-json", connection_data.database }
 	spec.persistant = connection_data.persistant or true
 	spec.queryBuilder = function(query)
 		-- wrap in quotes for sqlite
@@ -81,7 +82,7 @@ sqlite.spec = function(connection_data)
 
 	spec.assignUserArgs = function(args)
 		local processed = {}
-		local path = nil
+		local database = nil
 
 		table.insert(processed, "-json")
 
@@ -91,22 +92,21 @@ sqlite.spec = function(connection_data)
 
 				local match = v:match("([%w%p]+%.sqlite)$")
 				if match then
-					path = match
+					database = match
 				end
 			end
 		end
 
-		if not path then
-			path = vim.fn.getcwd() .. "/database/database.sqlite"
-			table.insert(processed, path)
+		if database ~= nil then
+			spec.database = database
 		end
 
 		spec.connection_args = processed
-		spec.path = path
+		-- spec.path = vim.fn.getcwd()
 	end
 	-- checks if the sqlite file is readable thus can be connected to
 	spec.checkConnection = function()
-		if vim.fn.filereadable(spec.path) == 1 then
+		if vim.fn.filereadable(spec.database) == 1 then
 			return true
 		else
 			vim.notify("file is not readable", vim.log.levels.ERROR)

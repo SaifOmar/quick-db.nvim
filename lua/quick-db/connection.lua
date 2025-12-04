@@ -32,7 +32,7 @@ end
 ---@param env_data table
 function CONNECTION:fromEnv(env_data)
 	local connection_data = {}
-	connection_data.path = vim.fn.getcwd() .. "/database/" .. env_data.DB_DATABASE .. ".sqlite"
+	connection_data.path = vim.fn.getcwd()
 	connection_data.persistant = true
 	connection_data.name = env_data.DB_CONNECTION
 	connection_data.username = env_data.DB_USERNAME
