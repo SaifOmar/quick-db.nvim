@@ -13,14 +13,7 @@ end
 ---@param type string
 ---@return table
 local function laravelDefatuls(type)
-	if type == "sqlite" then
-		print("type is sqlite")
-	else
-		print("type is.." .. type)
-		print("hahah")
-	end
 	local dbDefaults = {
-
 		sqlite = {
 			DB_CONNECTION = "sqlite",
 			DB_DATABASE = "database",
@@ -43,15 +36,6 @@ local function laravelDefatuls(type)
 		},
 	}
 	return dbDefaults[type] or {}
-
-	-- 	if type == "sqlite" then
-	-- 		return sqlite
-	-- 	elseif type == "mysql" then
-	-- 		return mysql
-	-- 	elseif type == "pgsql" then
-	-- 		return pgsql
-	-- 	end
-	-- 	return {}
 end
 
 ---@param data table
@@ -90,7 +74,6 @@ local parseFile = function(path)
 	local data = {}
 	local file = io.open(path .. "/.env", "r")
 	if not file then
-		print("File not found")
 		return data
 	end
 	data = getDBConnectionValues(file:lines(), data)

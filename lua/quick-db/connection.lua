@@ -1,7 +1,6 @@
 local env = require("quick-db.env")
-
 local CONNECTION = {}
-CONNECTION.__index = DB
+CONNECTION.__index = CONNECTION
 
 ---@class CONNECTION
 ---@filed public spec table
@@ -22,9 +21,10 @@ local function getSpec(connection_data)
 		return require("quick-db.databases.pgsql").spec(connection_data)
 	end
 end
+
+--- this needs to be changed (it's currently tailored only to laravel)
 ---@param env_data table
 function CONNECTION:fromEnv(env_data)
-	--
 	local connection_data = {}
 	connection_data.path = vim.fn.getcwd() .. "/database/" .. env_data.DB_DATABASE .. ".sqlite"
 	connection_data.persistant = true

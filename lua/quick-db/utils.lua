@@ -17,6 +17,14 @@ function M.ends_with_backslash_n_quote(str)
 	return str:sub(-3) == "}]\n"
 end
 
+function M.split(str, sep)
+	local sep, fields = sep or " ", {}
+	local pattern = string.format("([^%s]+)", sep)
+	str:gsub(pattern, function(c)
+		fields[#fields + 1] = c
+	end)
+	return fields
+end
 function M.flatten(tbl, out)
 	out = out or {}
 	for _, v in ipairs(tbl) do

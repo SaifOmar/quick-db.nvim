@@ -81,4 +81,16 @@ function M:showPicker(prompt, data, on_choice, entry_maker)
 		})
 		:find()
 end
+
+---@param prompt string
+---@param default string
+function M:promptUser(prompt, default, callback)
+	vim.ui.input({
+		prompt = "Enter parameters: ",
+		default = default,
+		completion = "file",
+		highlight = false,
+	}, callback)
+end
+
 return M
