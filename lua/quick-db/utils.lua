@@ -2,6 +2,7 @@ local M = {}
 
 local log_file = vim.fn.stdpath("cache") .. "/quickdb.log"
 
+---@param msg any
 function M.log(msg)
 	local f = io.open(log_file, "a")
 	if f then
@@ -18,7 +19,8 @@ function M.ends_with_backslash_n_quote(str)
 end
 
 function M.split(str, sep)
-	local sep, fields = sep or " ", {}
+	local fields
+	sep, fields = sep or " ", {}
 	local pattern = string.format("([^%s]+)", sep)
 	str:gsub(pattern, function(c)
 		fields[#fields + 1] = c

@@ -13,6 +13,7 @@ local uv = vim.uv
 --- @field error_output table
 --- @field Connect function
 --- @field ConnectUserConnection function
+--- @field RunQuery function
 --- @field Test function
 
 ---@return QuickDB
@@ -33,9 +34,39 @@ function M:setup()
 	self.spec = CON:fromEnv(env_data)
 end
 
+function M:RunQuery()
+	if not self.spec then
+		local err = self:setup()
+		if err ~= nil then
+			vim.notify("Failed to setup: " .. err, vim.log.levels.ERROR)
+			return
+		end
+	end
+
+	if self.spec.checkConnection() == false then
+		vim.notify("Connection failed", vim.log.levels.ERROR)
+		utils.log("spec is " .. vim.inspect(self.spec))
+		utils.log(
+			"try set args "
+				.. self.spec.cmd
+				.. " "
+				.. table.concat(self.spec.connection_args, " ")
+				.. " "
+				.. tostring(self.spec.queries.getTables())
+		)
+		self:_promptForConnection(function()
+			self:_propmtForQuery()
+		end)
+		return
+	end
+	self:_propmtForQuery()
+end
+
 function M:ConnectUserConnection()
 	self.spec = {}
-	self:_promptForConnection()
+	self:_promptForConnection(function()
+		self:_step_getTables()
+	end)
 end
 
 function M:Connect()
@@ -58,14 +89,41 @@ function M:Connect()
 				.. " "
 				.. tostring(self.spec.queries.getTables())
 		)
-		self:_promptForConnection()
+		self:_promptForConnection(function()
+			self:_step_getTables()
+		end)
 		return
 	end
 
 	self:_step_getTables()
 end
 
-function M:_promptForConnection()
+function M:_propmtForQuery()
+	UI:promptUser("Please provide a query", "", function(query)
+		if query and query ~= "" then
+			self:_run_query(query)
+		end
+	end)
+end
+
+--- @param query string
+function M:_run_query(query)
+	if query and query ~= "" then
+		self:quick(
+			utils.flatten({
+				self.spec.cmd,
+				self.spec.connection_args,
+				query,
+			}),
+			function()
+				self:_step_showRecordsUI()
+			end
+		)
+	end
+end
+
+---@param callback function
+function M:_promptForConnection(callback)
 	---@diagnostic disable-next-line: missing-parameter
 	UI:showPicker("Select database driver", { "sqlite", "mysql", "psql" }, function(input)
 		if input and input ~= "" then
@@ -83,6 +141,10 @@ function M:_promptForConnection()
 			UI:promptUser("Please provide connection args", table.concat(self.spec.connection_args, " "), function(ins)
 				if ins and ins ~= "" then
 					self.spec.assignUserArgs(utils.split(ins, " "))
+				end
+				if callback then
+					callback()
+					return
 				end
 				self:_step_getTables()
 			end)
