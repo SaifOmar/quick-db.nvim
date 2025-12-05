@@ -25,7 +25,3 @@ Database access for quick devs.
   `:QuickConnectUserConnection` –  Allows users to specify their own connection.
 
 ```
-
-```lua
-
-

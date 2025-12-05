@@ -2,9 +2,9 @@ local M = {}
 M.__index = M
 
 local CON = require("quick-db.connection")
+local UI = require("quick-db.ui")
 local Env = require("quick-db.env")
 local utils = require("quick-db.utils")
-local UI = require("quick-db.ui")
 local uv = vim.uv
 
 --- @class QuickDB
@@ -14,7 +14,7 @@ local uv = vim.uv
 --- @field Connect function
 --- @field ConnectUserConnection function
 --- @field Test function
----
+
 ---@return QuickDB
 function M:new()
 	local o = {
@@ -184,12 +184,21 @@ function M:Test()
 end
 
 function M:_step_displayRecord(record)
-	utils.log("record is " .. vim.inspect(record))
-	UI:open_buffer_with_lines_win(utils.table_to_lines(record))
+	-- utils.log("record is " .. vim.inspect(record))
+	-- local try_it = utils._table_to_formated_table(record)
+	-- utils.log("formated shit is " .. vim.inspect(utils._table_to_formated_table(record)))
+	--
+	-- local lines = utils.table_to_lines(try_it)
+	-- utils.log("lines are " .. vim.inspect(lines))
+
+	local lines = utils.table_to_lines(record)
+
+	utils.log("lines are " .. vim.inspect(lines))
+	UI:open_buffer_with_lines_win(lines)
 end
 
--- @param args table
--- @param on_complete function (Required)
+---@param args table
+---@param on_complete function (Required)
 function M:quick(args, on_complete)
 	local cmd = args[1]
 	local cmd_args = {}
